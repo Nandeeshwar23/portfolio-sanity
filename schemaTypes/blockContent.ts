@@ -1,67 +1,150 @@
-import {defineType, defineArrayMember} from 'sanity'
+import { defineArrayMember, defineField, defineType } from 'sanity'
 
-/**
- * This is the schema definition for the rich text fields used for
- * for this blog studio. When you import it in schemas.js it can be
- * reused in other parts of the studio with:
- *  {
- *    name: 'someName',
- *    title: 'Some title',
- *    type: 'blockContent'
- *  }
- */
 export default defineType({
-  title: 'Block Content',
+  title: 'Article content',
   name: 'blockContent',
   type: 'array',
   of: [
     defineArrayMember({
-      title: 'Block',
+      title: 'Text',
       type: 'block',
-      // Styles let you set what your user can mark up blocks with. These
-      // correspond with HTML tags, but you can set any title or value
-      // you want and decide how you want to deal with it where you want to
-      // use your content.
       styles: [
-        {title: 'Normal', value: 'normal'},
-        {title: 'H1', value: 'h1'},
-        {title: 'H2', value: 'h2'},
-        {title: 'H3', value: 'h3'},
-        {title: 'H4', value: 'h4'},
-        {title: 'Quote', value: 'blockquote'},
+        { title: 'Normal', value: 'normal' },
+        { title: 'Heading 1', value: 'h1' },
+        { title: 'Heading 2', value: 'h2' },
+        { title: 'Heading 3', value: 'h3' },
+        { title: 'Heading 4', value: 'h4' },
+        { title: 'Quote', value: 'blockquote' },
       ],
-      lists: [{title: 'Bullet', value: 'bullet'}],
-      // Marks let you mark up inline text in the block editor.
+      lists: [
+        { title: 'Bullet list', value: 'bullet' },
+        { title: 'Numbered list', value: 'number' },
+      ],
       marks: {
-        // Decorators usually describe a single property – e.g. a typographic
-        // preference or highlighting by editors.
         decorators: [
-          {title: 'Strong', value: 'strong'},
-          {title: 'Emphasis', value: 'em'},
+          { title: 'Bold', value: 'strong' },
+          { title: 'Italic', value: 'em' },
+          { title: 'Inline code', value: 'code' },
+          { title: 'Underline', value: 'underline' },
         ],
-        // Annotations can be any object structure – e.g. a link or a footnote.
         annotations: [
           {
-            title: 'URL',
+            title: 'Link',
             name: 'link',
             type: 'object',
             fields: [
-              {
+              defineField({
                 title: 'URL',
                 name: 'href',
                 type: 'url',
-              },
+                validation: Rule => Rule.required(),
+              }),
+              defineField({
+                title: 'Open in new tab',
+                name: 'blank',
+                type: 'boolean',
+                initialValue: true,
+              }),
             ],
           },
         ],
       },
     }),
-    // You can add additional types here. Note that you can't use
-    // primitive types such as 'string' and 'number' in the same array
-    // as a block type.
     defineArrayMember({
       type: 'image',
-      options: {hotspot: true},
+      options: { hotspot: true },
+      fields: [
+        defineField({ name: 'alt', title: 'Alternative text', type: 'string' }),
+        defineField({ name: 'caption', title: 'Caption', type: 'string' }),
+      ],
+    }),
+    defineArrayMember({
+      name: 'codeSnippet',
+      title: 'Code block',
+      type: 'object',
+      fields: [
+        defineField({
+          name: 'language',
+          title: 'Language',
+          type: 'string',
+          options: {
+            list: [
+              { title: 'Plain text', value: 'text' },
+              { title: 'JavaScript', value: 'javascript' },
+              { title: 'TypeScript', value: 'typescript' },
+              { title: 'HTML', value: 'html' },
+              { title: 'CSS / SCSS', value: 'css' },
+              { title: 'Java', value: 'java' },
+              { title: 'JSON', value: 'json' },
+              { title: 'Bash', value: 'bash' },
+              { title: 'SQL', value: 'sql' },
+            ],
+          },
+          initialValue: 'typescript',
+          validation: Rule => Rule.required(),
+        }),
+        defineField({
+          name: 'code',
+          title: 'Code',
+          type: 'text',
+          rows: 10,
+          validation: Rule => Rule.required(),
+        }),
+      ],
+      preview: {
+        select: { title: 'language', subtitle: 'code' },
+        prepare({ title, subtitle }) {
+          const firstLine = typeof subtitle === 'string' ? subtitle.split('\\n')[0] : '';
+          return { title: `Code · ${title || 'text'}`, subtitle: firstLine };
+        },
+      },
+    }),
+    defineArrayMember({
+      name: 'contentTable',
+      title: 'Table',
+      type: 'object',
+      fields: [
+        defineField({
+          name: 'hasHeaderRow',
+          title: 'First row is a header',
+          type: 'boolean',
+          initialValue: true,
+        }),
+        defineField({
+          name: 'rows',
+          title: 'Rows',
+          type: 'array',
+          of: [
+            defineArrayMember({
+              name: 'tableRow',
+              title: 'Row',
+              type: 'object',
+              fields: [
+                defineField({
+                  name: 'cells',
+                  title: 'Cells (left to right)',
+                  type: 'array',
+                  of: [defineArrayMember({ type: 'string' })],
+                  validation: Rule => Rule.required().min(1),
+                }),
+              ],
+              preview: {
+                select: { cells: 'cells' },
+                prepare({ cells }) {
+                  return { title: Array.isArray(cells) ? cells.join(' · ') : 'Table row' };
+                },
+              },
+            }),
+          ],
+          validation: Rule => Rule.required().min(1),
+        }),
+      ],
+      preview: {
+        select: { rows: 'rows' },
+        prepare({ rows }) {
+          return { title: `Table (${Array.isArray(rows) ? rows.length : 0} rows)` };
+        },
+      },
     }),
   ],
 })
